@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#16101f" />
+<title>Resonancia · Last.fm</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  --bg:#16101f; --bg2:#1e1630; --surface:#241a36; --surface2:#2c2142;
+  --line:#3a2c56; --amber:#f0a63c; --rose:#e75a7c; --text:#f4efe6;
+  --muted:#a396c0; --muted2:#7d6ea0;
+  min-height:100vh;
+  background:
+    radial-gradient(1100px 520px at 78% -12%, rgba(231,90,124,.16), transparent 60%),
+    radial-gradient(900px 480px at 8% 0%, rgba(240,166,60,.14), transparent 55%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  padding:44px 20px 72px;
+}
+.wrap{max-width:1000px;margin:0 auto;}
+
+.eyebrow{
+  font-family:'Space Mono',monospace;letter-spacing:.28em;font-size:.72rem;
+  text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:12px;margin:0 0 14px;
+}
+.eyebrow::before{content:"";width:26px;height:2px;background:var(--amber);}
+.source-badge{
+  margin-left:auto;background:rgba(231,90,124,.14);border:1px solid rgba(231,90,124,.4);
+  color:var(--rose);border-radius:999px;padding:3px 12px;letter-spacing:.06em;font-size:.66rem;
+}
+.title{
+  font-family:'Fraunces',Georgia,serif;font-weight:900;
+  font-size:clamp(2.4rem,6.5vw,4.4rem);line-height:.98;letter-spacing:-.01em;margin:0 0 16px;
+}
+.title em{font-style:italic;color:var(--rose);font-weight:600;}
+.sub{color:var(--muted);font-size:1.02rem;line-height:1.55;max-width:580px;margin:0 0 26px;}
+
+/* API key */
+.keyrow{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;margin-bottom:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+}
+.keyrow label{font-family:'Space Mono',monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted2);}
+.keyrow input{
+  flex:1 1 240px;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:9px;
+  color:var(--text);font-family:'Space Mono',monospace;font-size:.86rem;padding:9px 12px;outline:0;
+}
+.keyrow input:focus{border-color:var(--amber);}
+.keyrow a{color:var(--amber);font-size:.82rem;text-decoration:none;white-space:nowrap;}
+.keyrow a:hover{text-decoration:underline;}
+
+.searchbar{
+  display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:8px;box-shadow:0 18px 40px -22px rgba(0,0,0,.8);transition:border-color .2s,box-shadow .2s;flex-wrap:wrap;
+}
+.searchbar:focus-within{border-color:var(--amber);box-shadow:0 0 0 4px rgba(240,166,60,.14),0 18px 40px -22px rgba(0,0,0,.8);}
+.searchbar input{
+  flex:1 1 220px;min-width:0;background:transparent;border:0;outline:0;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:1.06rem;padding:12px 14px;
+}
+.searchbar input::placeholder{color:var(--muted2);}
+.btn{
+  border:0;cursor:pointer;border-radius:11px;padding:0 22px;min-height:48px;
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.98rem;
+  background:linear-gradient(135deg,var(--amber),#f2843c);color:#2a1608;
+  transition:transform .12s,filter .2s;white-space:nowrap;
+}
+.btn:hover:not(:disabled){filter:brightness(1.06);}
+.btn:active:not(:disabled){transform:translateY(1px) scale(.99);}
+.btn:disabled{opacity:.55;cursor:progress;}
+.count-select{
+  background:var(--bg2);border:1px solid var(--line);border-radius:11px;color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:.9rem;padding:0 12px;min-height:48px;cursor:pointer;outline:0;
+}
+.count-select:focus{border-color:var(--amber);}
+
+.chips{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:16px 2px 0;}
+.chips-label{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.12em;}
+.chip{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:.84rem;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all .16s;}
+.chip:hover{border-color:var(--rose);color:var(--text);}
+
+.loading{display:flex;align-items:center;gap:16px;margin-top:40px;color:var(--muted);}
+.eqload{display:flex;gap:4px;align-items:flex-end;height:30px;}
+.eqload span{width:5px;background:var(--amber);border-radius:3px;animation:eqp 1s ease-in-out infinite;}
+.eqload span:nth-child(2){animation-delay:.15s}.eqload span:nth-child(3){animation-delay:.3s}
+.eqload span:nth-child(4){animation-delay:.45s}.eqload span:nth-child(5){animation-delay:.6s}
+@keyframes eqp{0%,100%{height:7px}50%{height:30px}}
+
+.error{margin-top:34px;background:rgba(231,90,124,.1);border:1px solid rgba(231,90,124,.4);border-radius:14px;padding:18px 20px;color:#ffd9e2;line-height:1.5;}
+.error b{color:#fff;}
+.error a{color:var(--amber);}
+
+.section-label{font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.18em;font-size:.72rem;color:var(--muted2);margin:46px 0 14px;display:flex;align-items:center;gap:12px;}
+.section-label::after{content:"";flex:1;height:1px;background:var(--line);}
+
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:14px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;transition:transform .18s,border-color .18s,box-shadow .18s;}
+.card:hover{transform:translateY(-3px);border-color:var(--rose);box-shadow:0 22px 44px -26px rgba(231,90,124,.6);}
+.seed{background:linear-gradient(135deg,var(--surface2),var(--surface));border-left:3px solid var(--amber);}
+.seed .name{color:var(--amber);}
+
+.name{font-family:'Fraunces',serif;font-weight:600;font-size:1.42rem;line-height:1.1;margin:0;}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.genre{background:rgba(240,166,60,.12);border:1px solid rgba(240,166,60,.35);color:var(--amber);border-radius:999px;padding:3px 11px;font-size:.76rem;}
+.discos{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);}
+.discos b{color:var(--text);font-size:1.02rem;}
+.desc{color:var(--muted);font-size:.92rem;line-height:1.5;margin:0;}
+.reason{font-size:.82rem;color:var(--muted2);line-height:1.45;margin:0;border-top:1px dashed var(--line);padding-top:11px;}
+.reason b{color:var(--rose);font-weight:500;}
+
+.sol-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.sol-cap{font-family:'Space Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted2);}
+.sol-val{font-weight:700;font-size:.82rem;color:var(--text);}
+.eq{display:flex;gap:3px;align-items:flex-end;height:26px;}
+.eq i{flex:1;border-radius:2px;background:var(--line);}
+.eq i.on{background:linear-gradient(180deg,var(--rose),var(--amber));}
+
+.foot{margin-top:44px;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--muted2);text-align:center;line-height:1.6;}
+
+@media(max-width:640px){ .grid{grid-template-columns:1fr;} body{padding:32px 16px 56px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Descubridor de bandas <span class="source-badge">datos: Last.fm</span></p>
+  <h1 class="title">Resonancia<em>.</em></h1>
+  <p class="sub">Escribe una banda o artista y encuentra otros similares — con datos reales de escucha de Last.fm. Sin IA, sin gasto: cada búsqueda es gratis.</p>
+
+  <div class="keyrow">
+    <label for="key">API key</label>
+    <input id="key" type="text" placeholder="Pega aquí tu API key gratis de Last.fm" spellcheck="false" autocomplete="off" />
+    <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">Obtener una gratis ↗</a>
+  </div>
+
+  <div class="searchbar">
+    <input id="q" placeholder="Nombre de una banda o artista…" />
+    <select id="count" class="count-select" title="Cantidad de resultados">
+      <option value="6">6 afines</option>
+      <option value="12" selected>12 afines</option>
+      <option value="20">20 afines</option>
+    </select>
+    <button class="btn" id="go">Buscar afines</button>
+  </div>
+
+  <div class="chips">
+    <span class="chips-label">Prueba con:</span>
+    <button class="chip">Radiohead</button>
+    <button class="chip">Café Tacvba</button>
+    <button class="chip">Soda Stereo</button>
+    <button class="chip">Hillsong United</button>
+    <button class="chip">Coldplay</button>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const KEY_INPUT = document.getElementById('key');
+const Q = document.getElementById('q');
+const COUNT = document.getElementById('count');
+const GO = document.getElementById('go');
+const OUT = document.getElementById('out');
+
+// Recordar la key (funciona al publicarla; si el entorno lo bloquea, no rompe)
+try { const k = localStorage.getItem('lfm_key'); if (k) KEY_INPUT.value = k; } catch(e){}
+KEY_INPUT.addEventListener('change', () => { try { localStorage.setItem('lfm_key', KEY_INPUT.value.trim()); } catch(e){} });
+
+document.querySelectorAll('.chip').forEach(c =>
+  c.addEventListener('click', () => { Q.value = c.textContent; buscar(); }));
+GO.addEventListener('click', buscar);
+Q.addEventListener('keydown', e => { if (e.key === 'Enter') buscar(); });
+
+const HEIGHTS = [42,68,54,88,60,78,46,84,58,72];
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+function nivelLabel(v){ return v>=85?'Muy alta':v>=67?'Alta':v>=34?'Media':'Baja'; }
+
+function solicitud(listeners){
+  const n = Number(listeners)||0;
+  if(n<=0) return 0;
+  const val = Math.round((Math.log10(n)/Math.log10(6000000))*100);
+  return Math.max(3, Math.min(100, val));
+}
+function limpiaBio(html){
+  if(!html) return '';
+  let t = html.replace(/<a\b[^>]*>.*?<\/a>/gi,'');
+  t = t.replace(/<[^>]+>/g,'')
+       .replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+  t = t.replace(/Read more on Last\.fm.*$/i,'').trim();
+  if(t.length>230) t = t.slice(0,227).trim()+'…';
+  return t;
+}
+function genero(tags){
+  if(!tags||!tags.tag) return '';
+  const arr = Array.isArray(tags.tag)?tags.tag:[tags.tag];
+  return arr.slice(0,2).map(x=>x.name).join(' · ');
+}
+
+async function lfm(method, extra){
+  const url = new URL('https://ws.audioscrobbler.com/2.0/');
+  url.searchParams.set('method', method);
+  url.searchParams.set('api_key', KEY_INPUT.value.trim());
+  url.searchParams.set('format','json');
+  url.searchParams.set('autocorrect','1');
+  for(const k in extra) url.searchParams.set(k, extra[k]);
+  const r = await fetch(url);
+  const j = await r.json();
+  if(j.error) throw new Error(j.message || ('error '+j.error));
+  return j;
+}
+
+async function mapLimit(items, limit, fn){
+  const results = new Array(items.length);
+  let i = 0;
+  async function worker(){
+    while(i < items.length){
+      const idx = i++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(limit, items.length)}, worker));
+  return results;
+}
+
+async function nAlbums(artist){
+  try{
+    const j = await lfm('artist.getTopAlbums', { artist, limit:1 });
+    const total = j.topalbums && j.topalbums['@attr'] && j.topalbums['@attr'].total;
+    return total ? Number(total) : null;
+  }catch(e){ return null; }
+}
+
+function solHTML(v){
+  const filled = Math.round(v/10);
+  const bars = HEIGHTS.map((h,i)=>`<i class="${i<filled?'on':''}" style="height:${h}%"></i>`).join('');
+  return `<div class="sol">
+    <div class="sol-head"><span class="sol-cap">Nivel de solicitud</span><span class="sol-val">${nivelLabel(v)} · ${v}%</span></div>
+    <div class="eq">${bars}</div></div>`;
+}
+
+function cardHTML(b, seed){
+  return `<div class="card${seed?' seed':''}">
+    <h3 class="name">${esc(b.nombre)}</h3>
+    <div class="meta">
+      ${b.genero?`<span class="genre">${esc(b.genero)}</span>`:''}
+      <span class="discos"><b>${b.discos!=null?b.discos:'—'}</b> lanzamientos</span>
+    </div>
+    ${b.descripcion?`<p class="desc">${esc(b.descripcion)}</p>`:''}
+    ${solHTML(b.solicitud)}
+    ${!seed && b.match!=null?`<p class="reason"><b>Coincidencia:</b> ${b.match}% según datos de escucha</p>`:''}
+  </div>`;
+}
+
+function showLoading(){
+  OUT.innerHTML = `<div class="loading"><div class="eqload"><span></span><span></span><span></span><span></span><span></span></div><span>Consultando Last.fm…</span></div>`;
+}
+function showError(msg){ OUT.innerHTML = `<div class="error">${msg}</div>`; }
+
+async function buscar(){
+  const banda = Q.value.trim();
+  const key = KEY_INPUT.value.trim();
+  if(!key){ showError('<b>Falta tu API key.</b> Es gratis: créala en <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">last.fm/api</a>, pégala arriba y vuelve a buscar.'); return; }
+  if(!banda) return;
+  GO.disabled = true; GO.textContent = 'Buscando…';
+  showLoading();
+
+  try{
+    const info = await lfm('artist.getInfo', { artist: banda });
+    const a = info.artist;
+    const seed = {
+      nombre: a.name,
+      genero: genero(a.tags),
+      discos: await nAlbums(a.name),
+      solicitud: solicitud(a.stats && a.stats.listeners),
+      descripcion: limpiaBio(a.bio && a.bio.summary)
+    };
+
+    const nQuiere = parseInt(COUNT.value, 10) || 12;
+    const sim = await lfm('artist.getSimilar', { artist: a.name, limit:nQuiere });
+    const list = ((sim.similarartists && sim.similarartists.artist) || []).slice(0, nQuiere);
+
+    const similares = await mapLimit(list, 5, async s => {
+      let g='', sol=0, desc='';
+      try{
+        const si = await lfm('artist.getInfo', { artist: s.name });
+        const sa = si.artist;
+        g = genero(sa.tags);
+        sol = solicitud(sa.stats && sa.stats.listeners);
+        desc = limpiaBio(sa.bio && sa.bio.summary);
+      }catch(e){}
+      const disc = await nAlbums(s.name);
+      return { nombre:s.name, genero:g, discos:disc, solicitud:sol, descripcion:desc, match: Math.round((Number(s.match)||0)*100) };
+    });
+
+    OUT.innerHTML =
+      `<div class="section-label">Tu punto de partida</div>` +
+      cardHTML(seed, true) +
+      `<div class="section-label">Resuenan con «${esc(a.name)}»</div>` +
+      `<div class="grid">${similares.map(b=>cardHTML(b,false)).join('')}</div>` +
+      `<p class="foot">Datos de Last.fm · "solicitud" estimada a partir de oyentes · "lanzamientos" incluye álbumes, EPs y sencillos catalogados</p>`;
+  }catch(e){
+    const m = (e.message||'').toLowerCase();
+    if(m.includes('not found')) showError('<b>No encontramos esa banda.</b> Revisa la escritura o prueba con otro nombre.');
+    else if(m.includes('invalid api key') || m.includes('api key')) showError('<b>API key inválida.</b> Verifica que pegaste bien tu clave de Last.fm.');
+    else showError('<b>Algo salió mal.</b> Revisa tu conexión e intenta de nuevo. ('+esc(e.message)+')');
+  }finally{
+    GO.disabled = false; GO.textContent = 'Buscar afines';
+  }
+}
+</script>
+</body>
+</html>
