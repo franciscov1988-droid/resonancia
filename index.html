@@ -143,6 +143,7 @@ input.count-select{width:96px;}
 .expbtn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:10px 16px;font-family:'Space Grotesk',sans-serif;font-size:.88rem;font-weight:500;cursor:pointer;transition:all .16s;}
 .expbtn:hover{border-color:var(--amber);color:var(--amber);}
 .expbtn:active{transform:translateY(1px);}
+.exphint{font-size:.78rem;color:var(--muted2);align-self:center;flex:1 1 200px;line-height:1.4;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -364,6 +365,7 @@ async function buscar(){
       `<div id="acciones" class="acciones" style="display:none">` +
         `<button class="expbtn" onclick="exportExcel()">⬇ Exportar a Excel</button>` +
         `<button class="expbtn" onclick="exportWord()">⬇ Exportar a Word</button>` +
+        `<span class="exphint">Marca la casilla de cada tarjeta y el archivo guardará ✓ en las marcadas.</span>` +
       `</div>` +
       `<div class="section-label">Resuenan con «${esc(a.name)}» <span id="prog" class="prog"></span></div>` +
       `<div class="grid">${skeletons || '<p class="desc">Last.fm no tiene afines catalogados para esta banda.</p>'}</div>` +
@@ -419,9 +421,9 @@ function filasExport(){
   const r = [];
   if(resultados.seed){
     const s = resultados.seed;
-    r.push({ descargado:(s.descargado?'☑':'☐'), tipo:'Banda base', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:'' , descripcion:s.descripcion||'' });
+    r.push({ marcado:!!s.descargado, descargado:(s.descargado?'☑':'☐'), tipo:'Banda base', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:'' , descripcion:s.descripcion||'' });
   }
-  (resultados.similares||[]).forEach(s => { if(s) r.push({ descargado:(s.descargado?'☑':'☐'), tipo:'Afín', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:(s.match!=null?s.match+'%':''), descripcion:s.descripcion||'' }); });
+  (resultados.similares||[]).forEach(s => { if(s) r.push({ marcado:!!s.descargado, descargado:(s.descargado?'☑':'☐'), tipo:'Afín', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:(s.match!=null?s.match+'%':''), descripcion:s.descripcion||'' }); });
   return r;
 }
 
@@ -432,7 +434,7 @@ function exportExcel(){
   const headers = ['Descargado','Tipo','Artista','Género','Lanzamientos','Solicitud %','Nivel','Coincidencia','Descripción'];
 
   if(window.XLSX){
-    const aoa = [headers].concat(filas.map(f => [f.descargado, f.tipo, f.artista, f.genero, f.lanzamientos, f.solicitud, f.nivel, f.coincidencia, f.descripcion]));
+    const aoa = [headers].concat(filas.map(f => [f.marcado, f.tipo, f.artista, f.genero, f.lanzamientos, f.solicitud, f.nivel, f.coincidencia, f.descripcion]));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = [{wch:12},{wch:11},{wch:24},{wch:22},{wch:12},{wch:10},{wch:9},{wch:12},{wch:70}];
     const wb = XLSX.utils.book_new();
