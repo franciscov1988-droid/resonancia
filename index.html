@@ -54,6 +54,13 @@ body{
 .keyrow input:focus{border-color:var(--amber);}
 .keyrow a{color:var(--amber);font-size:.82rem;text-decoration:none;white-space:nowrap;}
 .keyrow a:hover{text-decoration:underline;}
+.key-edit{display:flex;flex-wrap:wrap;gap:10px;align-items:center;width:100%;}
+.key-saved{display:flex;flex-wrap:wrap;gap:12px;align-items:center;width:100%;}
+.key-ok{font-family:'Space Grotesk',sans-serif;font-size:.9rem;color:var(--text);}
+.btn-sm{border:0;cursor:pointer;border-radius:9px;padding:9px 16px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:.84rem;background:linear-gradient(135deg,var(--amber),#f2843c);color:#2a1608;}
+.btn-sm:hover{filter:brightness(1.06);}
+.link-btn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 14px;font-size:.82rem;cursor:pointer;font-family:'Space Grotesk',sans-serif;}
+.link-btn:hover{border-color:var(--amber);color:var(--amber);}
 
 .searchbar{
   display:flex;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
@@ -145,10 +152,17 @@ input.count-select{width:96px;}
   <h1 class="title">Resonancia<em>.</em></h1>
   <p class="sub">Escribe una banda o artista y encuentra otros similares — con datos reales de escucha de Last.fm. Sin IA, sin gasto: cada búsqueda es gratis.</p>
 
-  <div class="keyrow">
-    <label for="key">API key</label>
-    <input id="key" type="text" placeholder="Pega aquí tu API key gratis de Last.fm" spellcheck="false" autocomplete="off" />
-    <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">Obtener una gratis ↗</a>
+  <div class="keyrow" id="keyrow">
+    <div id="key-saved" class="key-saved" style="display:none">
+      <span class="key-ok">🔑 API key de Last.fm guardada ✓</span>
+      <button type="button" class="link-btn" id="key-change">Cambiar</button>
+    </div>
+    <div id="key-edit" class="key-edit">
+      <label for="key">API key</label>
+      <input id="key" type="text" placeholder="Pega aquí tu API key gratis de Last.fm" spellcheck="false" autocomplete="off" />
+      <button type="button" class="btn-sm" id="key-save">Guardar</button>
+      <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">Obtener una gratis ↗</a>
+    </div>
   </div>
 
   <div class="searchbar">
@@ -171,6 +185,8 @@ input.count-select{width:96px;}
 
 <script>
 const KEY_INPUT = document.getElementById('key');
+const KEY_SAVED = document.getElementById('key-saved');
+const KEY_EDIT = document.getElementById('key-edit');
 const Q = document.getElementById('q');
 const COUNT = document.getElementById('count');
 const GO = document.getElementById('go');
@@ -179,9 +195,30 @@ const OUT = document.getElementById('out');
 // Guarda el último resultado para poder exportarlo
 let resultados = { banda:'', seed:null, similares:[] };
 
-// Recordar la key (funciona al publicarla; si el entorno lo bloquea, no rompe)
-try { const k = localStorage.getItem('lfm_key'); if (k) KEY_INPUT.value = k; } catch(e){}
-KEY_INPUT.addEventListener('change', () => { try { localStorage.setItem('lfm_key', KEY_INPUT.value.trim()); } catch(e){} });
+// --- Manejo de la API key (se guarda una sola vez) ---
+let memKey = '';
+function leerKey(){ try { return localStorage.getItem('lfm_key') || ''; } catch(e){ return memKey; } }
+function guardarKey(k){ memKey = k; try { localStorage.setItem('lfm_key', k); } catch(e){} }
+function currentKey(){ return (KEY_INPUT.value.trim()) || leerKey(); }
+
+function mostrarKeyGuardada(){ KEY_SAVED.style.display = 'flex'; KEY_EDIT.style.display = 'none'; }
+function mostrarKeyEdit(){ KEY_SAVED.style.display = 'none'; KEY_EDIT.style.display = 'flex'; KEY_INPUT.focus(); }
+
+(function initKey(){
+  const k = leerKey();
+  if(k){ KEY_INPUT.value = k; mostrarKeyGuardada(); }
+  else { mostrarKeyEdit(); }
+})();
+
+document.getElementById('key-save').addEventListener('click', () => {
+  const k = KEY_INPUT.value.trim();
+  if(!k){ KEY_INPUT.focus(); return; }
+  guardarKey(k);
+  mostrarKeyGuardada();
+});
+document.getElementById('key-change').addEventListener('click', mostrarKeyEdit);
+// Respaldo: guarda mientras escribe, por si no pulsa "Guardar"
+KEY_INPUT.addEventListener('input', () => guardarKey(KEY_INPUT.value.trim()));
 
 document.querySelectorAll('.chip').forEach(c =>
   c.addEventListener('click', () => { Q.value = c.textContent; buscar(); }));
@@ -218,7 +255,7 @@ function genero(tags){
 async function lfm(method, extra){
   const url = new URL('https://ws.audioscrobbler.com/2.0/');
   url.searchParams.set('method', method);
-  url.searchParams.set('api_key', KEY_INPUT.value.trim());
+  url.searchParams.set('api_key', currentKey());
   url.searchParams.set('format','json');
   url.searchParams.set('autocorrect','1');
   for(const k in extra) url.searchParams.set(k, extra[k]);
@@ -294,8 +331,8 @@ function showError(msg){ OUT.innerHTML = `<div class="error">${msg}</div>`; }
 
 async function buscar(){
   const banda = Q.value.trim();
-  const key = KEY_INPUT.value.trim();
-  if(!key){ showError('<b>Falta tu API key.</b> Es gratis: créala en <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">last.fm/api</a>, pégala arriba y vuelve a buscar.'); return; }
+  const key = currentKey();
+  if(!key){ mostrarKeyEdit(); showError('<b>Falta tu API key.</b> Es gratis: créala en <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">last.fm/api</a>, pégala arriba, pulsa Guardar y busca.'); return; }
   if(!banda) return;
   GO.disabled = true; GO.textContent = 'Buscando…';
   showLoading();
