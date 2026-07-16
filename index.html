@@ -110,6 +110,10 @@ input.count-select{width:96px;}
 .seed .name{color:var(--amber);}
 
 .name{font-family:'Fraunces',serif;font-weight:600;font-size:1.42rem;line-height:1.1;margin:0;}
+.cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.dl-check{display:flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);cursor:pointer;user-select:none;white-space:nowrap;padding-top:4px;}
+.dl-check input{width:16px;height:16px;accent-color:var(--amber);cursor:pointer;margin:0;}
+.dl-check:hover{color:var(--amber);}
 .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .genre{background:rgba(240,166,60,.12);border:1px solid rgba(240,166,60,.35);color:var(--amber);border-radius:999px;padding:3px 11px;font-size:.76rem;}
 .discos{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);}
@@ -128,7 +132,12 @@ input.count-select{width:96px;}
 .foot{margin-top:44px;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--muted2);text-align:center;line-height:1.6;}
 
 @media(max-width:640px){ .grid{grid-template-columns:1fr;} body{padding:32px 16px 56px;} }
+.acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+.expbtn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:10px 16px;font-family:'Space Grotesk',sans-serif;font-size:.88rem;font-weight:500;cursor:pointer;transition:all .16s;}
+.expbtn:hover{border-color:var(--amber);color:var(--amber);}
+.expbtn:active{transform:translateY(1px);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -166,6 +175,9 @@ const Q = document.getElementById('q');
 const COUNT = document.getElementById('count');
 const GO = document.getElementById('go');
 const OUT = document.getElementById('out');
+
+// Guarda el último resultado para poder exportarlo
+let resultados = { banda:'', seed:null, similares:[] };
 
 // Recordar la key (funciona al publicarla; si el entorno lo bloquea, no rompe)
 try { const k = localStorage.getItem('lfm_key'); if (k) KEY_INPUT.value = k; } catch(e){}
@@ -247,12 +259,19 @@ function solHTML(v){
 
 function cardHTML(b, seed, id){
   const loading = b.__loading;
-  const idAttr = id!=null ? ` id="sim-${id}"` : '';
+  const checkId = seed ? 'seed' : id;
+  const idAttr = seed ? ' id="sim-seed"' : (id!=null ? ` id="sim-${id}"` : '');
   const generoHTML = b.genero ? `<span class="genre">${esc(b.genero)}</span>` : (loading?`<span class="genre skel">···</span>`:'');
   const discosVal = b.discos!=null ? b.discos : (loading?'··':'—');
   const descHTML = b.descripcion ? `<p class="desc">${esc(b.descripcion)}</p>` : (loading?`<p class="desc skel">Cargando detalles…</p>`:'');
+  const check = (!loading && checkId!=null && checkId!==undefined)
+    ? `<label class="dl-check" title="Marcar como descargado"><input type="checkbox" ${b.descargado?'checked':''} onchange="toggleDescarga('${checkId}', this.checked)"><span>descargado</span></label>`
+    : '';
   return `<div class="card${seed?' seed':''}"${idAttr}>
-    <h3 class="name">${esc(b.nombre)}</h3>
+    <div class="cardhead">
+      <h3 class="name">${esc(b.nombre)}</h3>
+      ${check}
+    </div>
     <div class="meta">
       ${generoHTML}
       <span class="discos"><b>${discosVal}</b> lanzamientos</span>
@@ -261,6 +280,11 @@ function cardHTML(b, seed, id){
     ${solHTML(b.solicitud||0)}
     ${!seed && b.match!=null?`<p class="reason"><b>Coincidencia:</b> ${b.match}% según datos de escucha</p>`:''}
   </div>`;
+}
+
+function toggleDescarga(id, checked){
+  if(id === 'seed'){ if(resultados.seed) resultados.seed.descargado = checked; }
+  else { const i = Number(id); if(resultados.similares[i]) resultados.similares[i].descargado = checked; }
 }
 
 function showLoading(){
@@ -286,6 +310,7 @@ async function buscar(){
       solicitud: solicitud(a.stats && a.stats.listeners),
       descripcion: limpiaBio(a.bio && a.bio.summary)
     };
+    resultados = { banda: a.name, seed: seed, similares: [] };
 
     const nQuiere = Math.max(3, Math.min(100, parseInt(COUNT.value, 10) || 12));
     const sim = await lfm('artist.getSimilar', { artist: a.name, limit:nQuiere });
@@ -299,6 +324,10 @@ async function buscar(){
     OUT.innerHTML =
       `<div class="section-label">Tu punto de partida</div>` +
       cardHTML(seed, true) +
+      `<div id="acciones" class="acciones" style="display:none">` +
+        `<button class="expbtn" onclick="exportExcel()">⬇ Exportar a Excel</button>` +
+        `<button class="expbtn" onclick="exportWord()">⬇ Exportar a Word</button>` +
+      `</div>` +
       `<div class="section-label">Resuenan con «${esc(a.name)}» <span id="prog" class="prog"></span></div>` +
       `<div class="grid">${skeletons || '<p class="desc">Last.fm no tiene afines catalogados para esta banda.</p>'}</div>` +
       `<p class="foot">Datos de Last.fm · "solicitud" estimada a partir de oyentes · "lanzamientos" incluye álbumes, EPs y sencillos catalogados</p>`;
@@ -319,12 +348,15 @@ async function buscar(){
       }catch(e){}
       const disc = await nAlbums(s.name);
       const full = { nombre:s.name, genero:g, discos:disc, solicitud:sol, descripcion:desc, match: Math.round((Number(s.match)||0)*100) };
+      resultados.similares[idx] = full;
       const el = document.getElementById('sim-'+idx);
       if(el) el.outerHTML = cardHTML(full, false, idx);
       hechos++;
       if(prog) prog.textContent = hechos < list.length ? `cargando detalles… ${hechos}/${list.length}` : `${list.length} afines`;
     });
     if(prog) prog.textContent = `${list.length} afines`;
+    const acc = document.getElementById('acciones');
+    if(acc && list.length) acc.style.display = 'flex';
   }catch(e){
     const m = (e.message||'').toLowerCase();
     if(m.includes('not found')) showError('<b>No encontramos esa banda.</b> Revisa la escritura o prueba con otro nombre.');
@@ -333,6 +365,63 @@ async function buscar(){
   }finally{
     GO.disabled = false; GO.textContent = 'Buscar afines';
   }
+}
+
+/* ---------- Exportación ---------- */
+function nombreArchivo(s){ return (s||'bandas').replace(/[^\w\- ]+/g,'').replace(/\s+/g,'_').slice(0,40) || 'bandas'; }
+
+function descargar(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1200);
+}
+
+function filasExport(){
+  const r = [];
+  if(resultados.seed){
+    const s = resultados.seed;
+    r.push({ descargado:(s.descargado?'☑':'☐'), tipo:'Banda base', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:'' , descripcion:s.descripcion||'' });
+  }
+  (resultados.similares||[]).forEach(s => { if(s) r.push({ descargado:(s.descargado?'☑':'☐'), tipo:'Afín', artista:s.nombre, genero:s.genero||'', lanzamientos:(s.discos!=null?s.discos:''), solicitud:s.solicitud||0, nivel:nivelLabel(s.solicitud||0), coincidencia:(s.match!=null?s.match+'%':''), descripcion:s.descripcion||'' }); });
+  return r;
+}
+
+function exportExcel(){
+  const filas = filasExport();
+  if(!filas.length){ alert('Primero realiza una búsqueda.'); return; }
+  const base = 'Resonancia_' + nombreArchivo(resultados.banda) + '_afines';
+  const headers = ['Descargado','Tipo','Artista','Género','Lanzamientos','Solicitud %','Nivel','Coincidencia','Descripción'];
+
+  if(window.XLSX){
+    const aoa = [headers].concat(filas.map(f => [f.descargado, f.tipo, f.artista, f.genero, f.lanzamientos, f.solicitud, f.nivel, f.coincidencia, f.descripcion]));
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:12},{wch:11},{wch:24},{wch:22},{wch:12},{wch:10},{wch:9},{wch:12},{wch:70}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Afines');
+    XLSX.writeFile(wb, base + '.xlsx');
+  } else {
+    const rowsHtml = filas.map(f => `<tr><td>${f.descargado}</td><td>${esc(f.tipo)}</td><td>${esc(f.artista)}</td><td>${esc(f.genero)}</td><td>${f.lanzamientos}</td><td>${f.solicitud}</td><td>${esc(f.nivel)}</td><td>${esc(String(f.coincidencia))}</td><td>${esc(f.descripcion)}</td></tr>`).join('');
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`;
+    descargar(new Blob(['\ufeff'+html], {type:'application/vnd.ms-excel'}), base + '.xls');
+  }
+}
+
+function exportWord(){
+  const filas = filasExport();
+  if(!filas.length){ alert('Primero realiza una búsqueda.'); return; }
+  const base = 'Resonancia_' + nombreArchivo(resultados.banda) + '_afines';
+  const headers = ['Descargado','Tipo','Artista','Género','Lanzamientos','Solicitud','Coincidencia','Descripción'];
+  const rowsHtml = filas.map(f => `<tr><td style="text-align:center;font-size:14pt">${f.descargado}</td><td>${esc(f.tipo)}</td><td><b>${esc(f.artista)}</b></td><td>${esc(f.genero)}</td><td>${f.lanzamientos}</td><td>${esc(f.nivel)} (${f.solicitud}%)</td><td>${esc(String(f.coincidencia))}</td><td>${esc(f.descripcion)}</td></tr>`).join('');
+  const estilo = 'body{font-family:Calibri,Arial,sans-serif;color:#222;} h1{color:#b5560f;font-size:20pt;margin-bottom:2pt;} p.meta{color:#555;font-size:10pt;margin-top:0;} table{border-collapse:collapse;width:100%;font-size:10pt;} th{background:#f0a63c;color:#2a1608;padding:6px;border:1px solid #999;text-align:left;} td{padding:6px;border:1px solid #bbb;vertical-align:top;}';
+  const fecha = new Date().toLocaleDateString('es-HN');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${estilo}</style></head><body>` +
+    `<h1>Resonancia — Bandas afines</h1>` +
+    `<p class="meta">Banda base: <b>${esc(resultados.banda)}</b> · Generado el ${fecha} · Datos de Last.fm</p>` +
+    `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table>` +
+    `</body></html>`;
+  descargar(new Blob(['\ufeff'+html], {type:'application/msword'}), base + '.doc');
 }
 </script>
 </body>
